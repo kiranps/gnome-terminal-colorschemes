@@ -1,0 +1,64 @@
+#!/bin/bash
+
+source interstellar
+
+convert_hex_to_rgb() {
+    echo "'rgb("$((16#${1:0:2}))","$((16#${1:2:2}))","$((16#${1:4:2}))")'"
+}
+
+generate_color_pallete() {
+    pallete=""
+    for var in "$@"
+    do
+        pallete+=$(convert_hex_to_rgb ${var:1:6})
+    done
+    echo "[$pallete]"|sed "s/''/','/g"
+}
+
+generate_profile_id() {
+    echo `uuidgen`
+}
+
+set_as_default_profile() {
+    echo "setting default profile"
+    dconf write /org/gnome/terminal/legacy/profiles:/default "'$1'"
+}
+
+add_to_profile_list() {
+    echo "adding to profile list"
+    profile_list=$(dconf read /org/gnome/terminal/legacy/profiles:/list|sed 's/ //g')
+    new_profile_list=${profile_list%?}",'$1']"
+    echo $new_profile_list
+    dconf write /org/gnome/terminal/legacy/profiles:/list $new_profile_list
+}
+
+render_profile_template() {
+    color_pallete=$(generate_color_pallete $color0 $color1 $color2 $color3 $color4 $color5 $color6 $color7 $color8 $color9 $color10 $color11 $color12 $color13 $color14 $color15)
+
+    read -r -d '' template << EndOfMessage
+[/]
+visible-name='$visible_name'
+allow-bold=$allow_bold
+audible-bell=$audible_bell
+rewrap-on-resize=$rewrap_on_resize
+use-system-font=$use_system_font
+scrollbar-policy='$scrollbar_policy'
+use-theme-colors=$use_theme_colors
+use-theme-transparency=$use_theme_transparency
+font='$font'
+foreground-color='$foreground_color'
+background-color='$background_color'
+palette=$color_pallete
+EndOfMessage
+    echo "$template"
+}
+
+save_profile() {
+    render_profile_template | dconf load /org/gnome/terminal/legacy/profiles:/:$1/
+}
+
+profile_id=$(generate_profile_id)
+echo $profile_id
+save_profile $profile_id
+set_as_default_profile $profile_id
+add_to_profile_list $profile_id
